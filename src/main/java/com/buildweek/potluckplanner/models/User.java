@@ -1,12 +1,19 @@
 package com.buildweek.potluckplanner.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import javax.persistence.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "users")
-public class User
+public class User extends Auditable
 {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -23,7 +30,11 @@ public class User
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private String password;
 
-    // events
+    @OneToMany(mappedBy = "user",
+        cascade = CascadeType.ALL,
+        orphanRemoval = true)
+    @JsonIgnoreProperties(value = "user", allowSetters = true)
+    private Set<UserRoles> roles = new HashSet<>();
 
     public User()
     {
@@ -76,6 +87,35 @@ public class User
 
     public void setPassword(String password)
     {
+        BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+        this.password = passwordEncoder.encode(password);
+    }
+
+    public void setPasswordNoEncrypt(String password)
+    {
         this.password = password;
+    }
+
+    public Set<UserRoles> getRoles()
+    {
+        return roles;
+    }
+
+    public void setRoles(Set<UserRoles> roles)
+    {
+        this.roles = roles;
+    }
+
+    public List<SimpleGrantedAuthority> getAuthority()
+    {
+        List<SimpleGrantedAuthority> rtnList = new ArrayList<>();
+
+        for (UserRoles r : this.roles)
+        {
+            String myRole = "ROLE_" + r.getRole().getName().toUpperCase();
+            rtnList.add(new SimpleGrantedAuthority(myRole));
+        }
+
+        return rtnList;
     }
 }
